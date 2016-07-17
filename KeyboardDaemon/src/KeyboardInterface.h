@@ -8,10 +8,10 @@
 #ifndef KEYBOARDINTERFACE_H_
 #define KEYBOARDINTERFACE_H_
 
-int init_keyboard();
+void init_keyboard();
 int sendKey(int key, int value);
 int sendSync();
-int destroy_keyboard();
-int typeKey(int key);
+void destroy_keyboard();
+void typeKey(int key);
 
 #endif /* KEYBOARDINTERFACE_H_ */

@@ -16,27 +16,23 @@ struct input_event ev;
 int fd;
 
 // Initialize uinput keyboard
-int init_keyboard(void) {
+void init_keyboard(void) {
 	// Set up uinput device
 	fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 	if(fd < 0) {
-		printf("error: open");
-		return 1;
+		printf("Error opening keyboard device\n");
+		exit(EXIT_FAILURE);
 	}
 
 	// Enable key press/release and synchronization events
-	if(ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0) {
-		printf("error: key");
-		return 1;
-	}
+	ioctl(fd, UI_SET_EVBIT, EV_KEY);
 	ioctl(fd, UI_SET_EVBIT, EV_SYN);
 
 	// Enable keypress events of any key
 	int i;
 	for(i = 0; i < 256; i++) {
 		if(ioctl(fd, UI_SET_KEYBIT, i) < 0) {
-			printf("error: associating key");
-			return 1;
+			printf("error: associating key %x\n", i);
 		}
 	}
 
@@ -44,7 +40,7 @@ int init_keyboard(void) {
 	struct uinput_user_dev uidev;
 	memset(&uidev, 0, sizeof(uidev));
 
-	snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "uinput-key-test");
+	snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "rPi-matrix-keyboard");
 	uidev.id.bustype = BUS_USB;
 	uidev.id.vendor = 0x1;
 	uidev.id.product = 0x1;
@@ -52,15 +48,25 @@ int init_keyboard(void) {
 
 	// Create the device
 	if(write(fd, &uidev, sizeof(uidev)) < 0) {
-		printf("error: writing creation");
-		return 1;
+		printf("Error writing keyboard creation");
+		exit(EXIT_FAILURE);
 	}
 
 	if(ioctl (fd, UI_DEV_CREATE) < 0) {
-		printf("error: creation");
+		printf("Error creating keyboard");
+		exit(EXIT_FAILURE);
+	}
+}
+
+// Sync keyboard events
+int sendSync(void) {
+	ev.type = EV_SYN;
+	ev.code = SYN_REPORT;
+	ev.value = 0;
+	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
+		printf("error: writing sync");
 		return 1;
 	}
-
 	return 0;
 }
 
@@ -77,33 +83,18 @@ int sendKey(int key, int value) {
 	return 0;
 }
 
-// Sync keyboard events
-int sendSync(void) {
-	ev.type = EV_SYN;
-	ev.code = SYN_REPORT;
-	ev.value = 0;
-	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
-		printf("error: writing sync");
-		return 1;
-	}
-	return 0;
-}
-
 // Destroy uinput keyboard
-int destroy_keyboard() {
+void destroy_keyboard() {
 	sleep(2);
 	if(ioctl(fd, UI_DEV_DESTROY) < 0) {
 		printf("error: destroying");
-		return 1;
 	}
 	close(fd);
-	return 0;
 }
 
-int typeKey(int key) {
+void typeKey(int key) {
 	sendKey(key, 1);
 	usleep(100000);
 	sendKey(key, 0);
 	usleep(100000);
-	return 0;
 }
