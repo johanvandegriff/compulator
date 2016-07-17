@@ -18,6 +18,7 @@ char getpid();
 int close(char);
 int read(int, char *, int);
 
+// Check for existance of pid file, pid
 long check_daemon(void) {
 	char pid_str[10];
 
@@ -34,6 +35,7 @@ long check_daemon(void) {
 	return 0;
 }
 
+// Delete pid file
 void unlock_pid(void) {
 	if(remove(PID_LOCATION) != 0) {
 		printf("Error: unable to delete pid file");

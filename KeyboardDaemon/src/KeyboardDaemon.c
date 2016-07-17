@@ -29,8 +29,9 @@ int main(int argc, char *argv[]) {
 	} else if(!strcmp(argv[1], "-k")) {
 		kill_daemon();
 	} else {
-		printf("Starting in terminal");
+		printf("Starting in terminal\n");
 	}
+
 	init_keyboard();
 	usleep(100000);
 	for(int i = 0; i < 4; i++) {

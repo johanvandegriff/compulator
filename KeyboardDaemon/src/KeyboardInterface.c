@@ -3,6 +3,13 @@
  *
  *  Created on: Jul 16, 2016
  *      Author: Nikita Wootten
+ *
+ *	This file can simulate a virtual keyboard.
+ *
+ *	Remember:
+ *	-BEFORE USE, CALL THE init_keyboard() FUNCTION!
+ *	-Be sure to call sendSync() after using sendKey()
+ *	-If program outputs "Error opening keyboard device", modprobe uinput!
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,7 +86,7 @@ int sendKey(int key, int value) {
 		printf("error: writing event");
 		return 1;
 	}
-	sendSync();
+	//sendSync(); /* Keyboard sync events need to be handled elsewhere */
 	return 0;
 }
 
