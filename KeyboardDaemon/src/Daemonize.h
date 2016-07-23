@@ -8,8 +8,8 @@
 #ifndef DAEMONIZE_H_
 #define DAEMONIZE_H_
 
-int start_daemon(void);
-int kill_deamon(void);
-int unlock_pid(void);
+int startDaemon(void);
+int killDeamon(void);
+int unlockPid(void);
 
 #endif /* DAEMONIZE_H_ */

@@ -19,7 +19,7 @@ int close(char);
 int read(int, char *, int);
 
 // Check for existance of pid file, pid
-long check_daemon(void) {
+long checkDaemon(void) {
 	char pid_str[10];
 
 	int pid_fd = open(PID_LOCATION, O_RDONLY, 0600);
@@ -36,14 +36,14 @@ long check_daemon(void) {
 }
 
 // Delete pid file
-void unlock_pid(void) {
+void unlockPid(void) {
 	if(remove(PID_LOCATION) != 0) {
 		printf("Error: unable to delete pid file");
 	}
 }
 
-void kill_daemon(void) {
-	long pid = check_daemon();
+void killDaemon(void) {
+	long pid = checkDaemon();
 	if(pid == 0) {
 		return;
 	} else {
@@ -51,15 +51,15 @@ void kill_daemon(void) {
 			printf("Error: could not kill daemon, continuing\n");
 			return;
 		}
-		unlock_pid();
+		unlockPid();
 	}
 }
 
-void start_daemon(void) {
+void startDaemon(void) {
 	//check for existence of daemon
-	if(check_daemon() != 0) {
+	if(checkDaemon() != 0) {
 		printf("Another instance is already running! Killing older instance.");
-		kill_daemon();
+		killDaemon();
 	}
 
 	// Daemonize the process

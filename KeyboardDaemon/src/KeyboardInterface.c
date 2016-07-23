@@ -19,11 +19,10 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-struct input_event ev;
 int fd;
 
 // Initialize uinput keyboard
-void init_keyboard(void) {
+void initKeyboard(void) {
 	// Set up uinput device
 	fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 	if(fd < 0) {
@@ -67,6 +66,7 @@ void init_keyboard(void) {
 
 // Sync keyboard events
 int sendSync(void) {
+	struct input_event ev;
 	ev.type = EV_SYN;
 	ev.code = SYN_REPORT;
 	ev.value = 0;
@@ -77,21 +77,30 @@ int sendSync(void) {
 	return 0;
 }
 
-int sendKey(int key, int value) {
-	memset(&ev, 0, sizeof(struct input_event));
+int sendKeyByKeycode(int key, int value) {
+	struct input_event ev;
+	//memset(&ev, 0, sizeof(struct input_event));
 	ev.type = EV_KEY;
 	ev.code = key;
 	ev.value = value;
 	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
-		printf("error: writing event");
+		printf("error writing event");
 		return 1;
 	}
 	//sendSync(); /* Keyboard sync events need to be handled elsewhere */
 	return 0;
 }
 
+int sendKeyByInputEvent(struct input_event ev) {
+	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
+		printf("error writing event");
+		return 1;
+	}
+	return 0;
+}
+
 // Destroy uinput keyboard
-void destroy_keyboard() {
+void destroyKeyboard() {
 	sleep(2);
 	if(ioctl(fd, UI_DEV_DESTROY) < 0) {
 		printf("error: destroying");
@@ -100,8 +109,8 @@ void destroy_keyboard() {
 }
 
 void typeKey(int key) {
-	sendKey(key, 1);
+	sendKeyByKeycode(key, 1);
 	usleep(100000);
-	sendKey(key, 0);
+	sendKeyByKeycode(key, 0);
 	usleep(100000);
 }

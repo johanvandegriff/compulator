@@ -14,7 +14,7 @@
 #include "Daemonize.h"
 
 int strcmp(char *, char *);
-void kill_daemon();
+void killDaemon();
 void usleep(int);
 
 int main(int argc, char *argv[]) {
@@ -25,22 +25,26 @@ int main(int argc, char *argv[]) {
 		printf("-d - start as daemon (current running daemon will be killed\n");
 		printf("-k - kill running daemon");
 	} else if(!strcmp(argv[1], "-d")) {
-		start_daemon();
+		startDaemon();
 	} else if(!strcmp(argv[1], "-k")) {
-		kill_daemon();
+		killDaemon();
 	} else {
 		printf("Starting in terminal\n");
 	}
 
-	init_keyboard();
+	initKeyboard();
 	usleep(100000);
-	for(int i = 0; i < 4; i++) {
-		typeKey(KEY_T);
-		typeKey(KEY_E);
-		typeKey(KEY_S);
-		typeKey(KEY_T);
+//	for(int i = 0; i < 4; i++) {
+//		typeKey(KEY_T);
+//		typeKey(KEY_E);
+//		typeKey(KEY_S);
+//		typeKey(KEY_T);
+//	}
+	while(1) {
+		update();
+		usleep(100);
 	}
-	destroy_keyboard();
-	unlock_pid();
+	destroyKeyboard();
+	unlockPid();
 	exit(EXIT_SUCCESS);
 }
