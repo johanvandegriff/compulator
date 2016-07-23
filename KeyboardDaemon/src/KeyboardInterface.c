@@ -19,6 +19,8 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
+#define DEBUG 1
+
 int fd;
 
 // Initialize uinput keyboard
@@ -54,12 +56,12 @@ void initKeyboard(void) {
 
 	// Create the device
 	if(write(fd, &uidev, sizeof(uidev)) < 0) {
-		printf("Error writing keyboard creation");
+		printf("error writing keyboard creation\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if(ioctl (fd, UI_DEV_CREATE) < 0) {
-		printf("Error creating keyboard");
+		printf("error creating keyboard\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -71,7 +73,7 @@ int sendSync(void) {
 	ev.code = SYN_REPORT;
 	ev.value = 0;
 	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
-		printf("error: writing sync");
+		printf("error: writing sync\n");
 		return 1;
 	}
 	return 0;
@@ -84,16 +86,19 @@ int sendKeyByKeycode(int key, int value) {
 	ev.code = key;
 	ev.value = value;
 	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
-		printf("error writing event");
+		printf("error writing event\n");
 		return 1;
 	}
+
+	printf("wrote to key %x\n", key);
+
 	//sendSync(); /* Keyboard sync events need to be handled elsewhere */
 	return 0;
 }
 
 int sendKeyByInputEvent(struct input_event ev) {
 	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
-		printf("error writing event");
+		printf("error writing event\n");
 		return 1;
 	}
 	return 0;

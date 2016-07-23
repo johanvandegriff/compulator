@@ -24,7 +24,7 @@ long checkDaemon(void) {
 
 	int pid_fd = open(PID_LOCATION, O_RDONLY, 0600);
 	if(pid_fd < 0) {
-		printf("Error reading pid file");
+		printf("error reading pid file\n");
 		return 0;
 	}
 	if(read(pid_fd, pid_str, 10) > 0) {
@@ -38,7 +38,7 @@ long checkDaemon(void) {
 // Delete pid file
 void unlockPid(void) {
 	if(remove(PID_LOCATION) != 0) {
-		printf("Error: unable to delete pid file");
+		printf("error: unable to delete pid file\n");
 	}
 }
 
@@ -48,7 +48,7 @@ void killDaemon(void) {
 		return;
 	} else {
 		if(kill(pid, SIGTERM) < 0) {
-			printf("Error: could not kill daemon, continuing\n");
+			printf("error: could not kill daemon, continuing\n");
 			return;
 		}
 		unlockPid();
@@ -58,7 +58,7 @@ void killDaemon(void) {
 void startDaemon(void) {
 	//check for existence of daemon
 	if(checkDaemon() != 0) {
-		printf("Another instance is already running! Killing older instance.");
+		printf("Another instance is already running! Killing older instance.\n");
 		killDaemon();
 	}
 
@@ -68,7 +68,7 @@ void startDaemon(void) {
 
 	if(pid < 0) {
 		// Fork was a failure
-		printf("Fork failure! Exiting.");
+		printf("Fork failure! Exiting.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -81,14 +81,14 @@ void startDaemon(void) {
 	// Write pid file
 	int pid_fd = open(PID_LOCATION, O_RDWR|O_CREAT, 0600);
 	if(pid_fd < 0) {
-		printf("Error opening pid file, exiting (NOT DAEMON)");
+		printf("Error opening pid file, exiting (NOT DAEMON)\n");
 		exit(EXIT_FAILURE);
 	}
 	char pid_str[10];
 	sprintf(pid_str, "%d\n", getpid());
 
 	if(write(pid_fd, pid_str, strlen(pid_str)) < 0) {
-		printf("Error writing pid file, exiting (NOT DAEMON)");
+		printf("Error writing pid file, exiting (NOT DAEMON)\n");
 	}
 	close(pid_fd);
 

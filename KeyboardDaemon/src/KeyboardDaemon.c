@@ -33,7 +33,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	initKeyboard();
+	initGPIO();
+
 	usleep(100000);
+//	int i;
 //	for(int i = 0; i < 4; i++) {
 //		typeKey(KEY_T);
 //		typeKey(KEY_E);

@@ -87,7 +87,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-//#include <wiringPi.h>
+#include <wiringPi.h>
 
 #define PIN 0
 #define DELAY 2000
@@ -98,8 +98,60 @@
 #define ROW_COUNT 10
 #define MAXIMUM_PRESSED 5
 
-int rowPins[] = {4,5,6,7,8,9,10,11};
-int colPins[] = {12,13,14,15,16,1718};
+// not an RNG I swear
+int rowPins[] = {2, 0, 7, 4, 21, 23, 22, 1, 3, 24};
+int colPins[] = {27, 26, 29, 28, 25};
+
+int keyMap[4][ROW_COUNT][COLUMN_COUNT] = {
+		{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0}
+		},
+		{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0}
+		},
+		{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0}
+		},
+		{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0}
+		}
+};
 
 struct keyPress {
 	int column;
@@ -108,9 +160,32 @@ struct keyPress {
 
 struct keyPress currentlyPressed[MAXIMUM_PRESSED];
 
-int* getColumn(int row_number) {
+int initGPIO(void) {
+	if(wiringPiSetup() == -1) {
+		return -1;
+	}
+	int i;
+	for(i = 0; i < ROW_COUNT; i++) {
+		pinMode(rowPins[i], INPUT);
+	}
+	for(i = 0; i < COLUMN_COUNT; i++) {
+		pinMode(colPins[i], OUTPUT);
+		digitalWrite(colPins[i], 1);
+	}
+	return 0;
+}
+
+int* getColumn(int column_number) {
+	if(column_number >= COLUMN_COUNT || column_number < 0) {
+		return -1;
+	}
+	digitalWrite(colPins[column_number], 0);
 	static int values[ROW_COUNT];
-	// TODO actually poll for keyboard values?
+	int i;
+	for(i = 0; i < ROW_COUNT; i++) {
+		values[i] = digitalRead(rowPins[i]);
+	}
+	digitalWrite(colPins[column_number], 1);
 	return values;
 }
 
@@ -164,56 +239,6 @@ void update(void) {
 	}
 
 	// Determine what keycodes map to use
-	int keyMap[4][ROW_COUNT][COLUMN_COUNT] = {
-			{
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0}
-			},
-			{
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0}
-			},
-			{
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0}
-			},
-			{
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0}
-			}
-	};
 	int keyMapModifier;
 	if(isMod == 0 && is2nd == 0) {
 		keyMapModifier = 0;
