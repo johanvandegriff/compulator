@@ -85,20 +85,16 @@
  *
  *	TODO: Add some fancy config options, for now just use my key setup
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <wiringPi.h>
-#include <unistd.h>
+
+//#include <stdlib.h>
+//#include <unistd.h>
 #include <linux/input.h>
+#include <stdio.h>
+#include <wiringPi.h>
+#include "KeyboardInterface.h"
 
-#define PIN 0
-#define DELAY 2000
-#define NUM_PULSES 1
-#define PULSE_WIDTH 20
-
-#define COLUMN_COUNT 5
 #define ROW_COUNT 10
-#define MAXIMUM_PRESSED 5
+#define COLUMN_COUNT 5
 
 // not an RNG I swear
 int rowPins[] = {2, 0, 7, 4, 21, 23, 22, 1, 3, 24};
@@ -157,25 +153,81 @@ int keyMap[4][ROW_COUNT][COLUMN_COUNT] = {
 		}
 };
 
-int currentlyPressed[MAXIMUM_PRESSED][2];
-
 int initGPIO(void) {
-	if(wiringPiSetup() == -1) {
+	if (wiringPiSetup() == -1) {
+		printf("WiringPi Failed");
 		return -1;
 	}
+
 	int i;
-	for(i = 0; i < ROW_COUNT; i++) {
+	for(i = 0; i < ROW_COUNT; i++){
 		pinMode(rowPins[i], INPUT);
-		pullUpDnControl(rowPins[i], PUD_DOWN);
+		pullUpDnControl(rowPins[i], PUD_DOWN) ;
 	}
-	for(i = 0; i < COLUMN_COUNT; i++) {
+	for(i = 0; i < COLUMN_COUNT; i++){
 		pinMode(colPins[i], OUTPUT);
 		digitalWrite(colPins[i], LOW);
 	}
 	return 0;
 }
 
-void testGPIO(void) {
+int getModifier(){
+	int is2nd = buttons[8][1]; //[y][x]
+	int isMod = buttons[8][0];
+
+	return is2nd * 2 + isMod;
+}
+
+void update(){
+	int x, y, i, modifier, key;
+	int state, previousState;
+	for(x=0; x<COLUMN_COUNT; x++){
+		digitalWrite(colPins[x], HIGH);
+		delay(1);
+		for(y=0; y<ROW_COUNT; y++){
+			i = 10 * x + y;
+//			printf("x:%d y:%d i:%d\n", x, y, i);
+			state = digitalRead(rowPins[y]);
+			previousState = buttons[y][x];
+			buttons[y][x] = state;
+			if(state && !previousState){
+				modifier = getModifier();
+				key = keyMap[modifier][9-y][x];
+				printf("press at (%d, %d) mod: %d, key: %d\n", x, y, modifier, key);
+				// update the pressed key
+				sendKeyByKeycode(key, 1);
+				sendSync();
+			}
+			if(!state && previousState){
+				printf("release at (%d, %d)\n", x, y);
+				for(modifier=0; modifier<4; modifier++){
+					key = keyMap[modifier][9-y][x];
+					printf("    mod: %d, key: %d\n", modifier, key);
+					// update released key
+					sendKeyByKeycode(key, 0);
+					sendSync();
+				}
+			}
+//			printf("%x", state);
+		}
+		digitalWrite(colPins[x], LOW);
+//		printf("\n");
+	}
+//	printf("----------\n");
+}
+
+/*int main (int argc, char **argv) {
+	initGPIO();
+	while(1){
+		update();
+		delay(5);
+	}
+}*/
+
+
+
+
+/*void testGPIO(void) {
 	printf("Test Mode - Testing wiringPi\n");
 	sleep(1);
 	printf("Initializing wiringPi!\n");
@@ -201,157 +253,122 @@ void testGPIO(void) {
 	exit(EXIT_SUCCESS);
 }
 
+int errorInt = -1;
+
+int* getColumn(int column_number) {
+	if(column_number >= COLUMN_COUNT || column_number < 0) {
+		printf("error: column out of bounds exception");
+		return &errorInt;
+	}
+	digitalWrite(colPins[column_number], HIGH);
+	delay(1);
+	static int values[ROW_COUNT];
+	int i;
+	for(i = 0; i < ROW_COUNT; i++) {
+		values[i] = digitalRead(rowPins[i]) - 1;
+		if(values[i] == -1) {
+			values[i] = 1;
+		}
+	}
+	digitalWrite(colPins[column_number], LOW);
+	return values;
+}
+
+int* pollKeyboard(void) {
+	static int keys[MAXIMUM_PRESSED][2];
+	int number_of_keys = 0;
+	int i, j;
+	for(i = 0; i < COLUMN_COUNT; i++) {
+		int* values = getColumn(i);
+		for(j = 0; j < ROW_COUNT; j++) {
+			if(number_of_keys > MAXIMUM_PRESSED) {
+				keys[number_of_keys][0] = -1;
+				keys[number_of_keys][1] = -1;
+				number_of_keys++;
+			} else if(*(values + j) == 1) {
+				keys[number_of_keys][0] = i;
+				keys[number_of_keys][1] = j;
+				number_of_keys++;
+			}
+		}
+	}
+	return keys;
+}
+
+static int oldKeys[MAXIMUM_PRESSED];
+
 void sendSync(void);
 void sendKeyByKeycode(int, int);
 
-int getModifier(){
-	int is2nd = buttons[8][1]; //[y][x]
-	int isMod = buttons[8][0];
+void update(void) {
+	int *keys = pollKeyboard();
+	int isMod = 0;
+	int is2nd = 0;
 
-	return is2nd * 2 + isMod;
-}
 
-void update(){
-	int x, y, i, modifier, key;
-	int state, previousState;
-	for(x=0; x<COLUMN_COUNT; x++){
-		digitalWrite(colPins[x], HIGH);
-		delay(1);
-		for(y=0; y<ROW_COUNT; y++){
-			i = 10 * x + y;
-			state = digitalRead(rowPins[y]);
-			previousState = buttons[y][x];
-			buttons[y][x] = state;
-			modifier = getModifier();
-			key = keyMap[modifier][9-y][x];
-			if(state && !previousState){
-				printf("press at (%d, %d) mod: %d, key: %d\n", x, y, modifier, key);
-				// update the pressed key
-				sendKeyByKeycode(key, 1);
-				sendSync();
-			}
-			if(!state && previousState){
-				printf("release at (%d, %d) mod: %d, key: %d\n", x, y, modifier, key);
-				// update released key
-				sendKeyByKeycode(key, 0);
-				sendSync();
+	// Since we can only return an array as a pointer to the first element,
+	// New "key-press" on every second pointer increment.
+
+	int i;
+	// Determine if modifiers where pressed
+	for(i = 0; i < (2 * MAXIMUM_PRESSED); i += 2) {
+		if(keys[i][0] != -1 && keys[i][1] != -1) {
+			if(keys[i][1] == 1) { // If second row
+				if(keys[i][0] == 0) {
+					is2nd = 1;
+				} else if(keys[i][1] == 1) {
+					isMod = 1;
+				}
 			}
 		}
-		digitalWrite(colPins[x], LOW);
 	}
-}
 
-//static int oldKeys[MAXIMUM_PRESSED];
-//int errorInt = -1;
-//
-//int* getColumn(int column_number) {
-//	if(column_number >= COLUMN_COUNT || column_number < 0) {
-//		printf("error: column out of bounds exception");
-//		return &errorInt;
-//	}
-//	digitalWrite(colPins[column_number], HIGH);
-//	delay(1);
-//	static int values[ROW_COUNT];
-//	int i;
-//	for(i = 0; i < ROW_COUNT; i++) {
-//		values[i] = digitalRead(rowPins[i]) - 1;
-//		if(values[i] == -1) {
-//			values[i] = 1;
-//		}
-//	}
-//	digitalWrite(colPins[column_number], LOW);
-//	return values;
-//}
+	// Determine what keycodes map to use
+	int keyMapModifier;
+	if(isMod == 0 && is2nd == 0) {
+		keyMapModifier = 0;
+	} else if(isMod == 1 && is2nd == 0) {
+		keyMapModifier = 1;
+	} else if(is2nd == 1 && isMod == 0) {
+		keyMapModifier = 2;
+	} else {
+		keyMapModifier = 3;
+	}
 
-//int** pollKeyboard(void) {
-//	static int keys[MAXIMUM_PRESSED][2];
-//	int number_of_keys = 0;
-//	int i, j;
-//	for(i = 0; i < COLUMN_COUNT; i++) {
-//		int* values = getColumn(i);
-//		for(j = 0; j < ROW_COUNT; j++) {
-//			if(number_of_keys > MAXIMUM_PRESSED) {
-//				keys[number_of_keys][0] = -1;
-//				keys[number_of_keys][1] = -1;
-//				number_of_keys++;
-//			} else if(*(values + j) == 1) {
-//				keys[number_of_keys][0] = i;
-//				keys[number_of_keys][1] = j;
-//				number_of_keys++;
-//			}
-//		}
-//	}
-//	return keys;
-//}
+	// finalKeys contains "pressed keys" in first half, and "unpressed" values in second.
+	int finalKeys[2 * MAXIMUM_PRESSED];
 
-//void update(void) {
-//	int **keys = pollKeyboard();
-//	int isMod = 0;
-//	int is2nd = 0;
-//
-//	/*
-//	 * Since we can only return an array as a pointer to the first element,
-//	 * New "key-press" on every second pointer increment.
-//	 */
-//	int i;
-//	// Determine if modifiers where pressed
-//	for(i = 0; i < (2 * MAXIMUM_PRESSED); i += 2) {
-//		if(keys[i][0] != -1 && keys[i][1] != -1) {
-//			if(keys[i][1] == 1) { /* If second row */
-//				if(keys[i][0] == 0) {
-//					is2nd = 1;
-//				} else if(keys[i][1] == 1) {
-//					isMod = 1;
-//				}
-//			}
-//		}
-//	}
-//
-//	// Determine what keycodes map to use
-//	int keyMapModifier;
-//	if(isMod == 0 && is2nd == 0) {
-//		keyMapModifier = 0;
-//	} else if(isMod == 1 && is2nd == 0) {
-//		keyMapModifier = 1;
-//	} else if(is2nd == 1 && isMod == 0) {
-//		keyMapModifier = 2;
-//	} else {
-//		keyMapModifier = 3;
-//	}
-//
-//	// finalKeys contains "pressed keys" in first half, and "unpressed" values in second.
-//	int finalKeys[2 * MAXIMUM_PRESSED];
-//
-//	// match matrix value with key code for pressed keys
-//	int j;
-//	for(i = 0; i < (2 * MAXIMUM_PRESSED); i += 2) {
-//		if(keys[i][1] != -1 && keys[i][0] != -1) {
-//			finalKeys[i / 2] = keyMap[keyMapModifier][keys[i][1]][keys[i][0]];
-//
-//			for(j = 0; j < MAXIMUM_PRESSED; j++) {
-//				if(finalKeys[i / 2] == oldKeys[j]) {
-//					finalKeys[(i / 2) + MAXIMUM_PRESSED] = oldKeys[j];
-//				}
-//				// replace old key at index with new key
-//				oldKeys[j] = finalKeys[i / 2];
-//			}
-//		} else {
-//			finalKeys[i / 2] = -1;
-//		}
-//	}
-//
-//	// update the keys!
-//	for(i = 0; i < MAXIMUM_PRESSED; i++) {
-//		if(finalKeys[i] != -1) {
-//			sendKeyByKeycode(finalKeys[i], 1);
-//			sendSync();
-//		}
-//	}
-//	// update released keys
-//	for(i = MAXIMUM_PRESSED; i < (2 * MAXIMUM_PRESSED); i++) {
-//		if(finalKeys[i] != -1) {
-//			sendKeyByKeycode(finalKeys[i], 0);
-//			sendSync();
-//		}
-//	}
-//}
+	// match matrix value with key code for pressed keys
+	int j;
+	for(i = 0; i < (2 * MAXIMUM_PRESSED); i += 2) {
+		if(keys[i][1] != -1 && keys[i][0] != -1) {
+			finalKeys[i / 2] = keyMap[keyMapModifier][keys[i][1]][keys[i][0]];
+
+			for(j = 0; j < MAXIMUM_PRESSED; j++) {
+				if(finalKeys[i / 2] == oldKeys[j]) {
+					finalKeys[(i / 2) + MAXIMUM_PRESSED] = oldKeys[j];
+				}
+				// replace old key at index with new key
+				oldKeys[j] = finalKeys[i / 2];
+			}
+		} else {
+			finalKeys[i / 2] = -1;
+		}
+	}
+
+	// update the keys!
+	for(i = 0; i < MAXIMUM_PRESSED; i++) {
+		if(finalKeys[i] != -1) {
+			sendKeyByKeycode(finalKeys[i], 1);
+			sendSync();
+		}
+	}
+	// update released keys
+	for(i = MAXIMUM_PRESSED; i < (2 * MAXIMUM_PRESSED); i++) {
+		if(finalKeys[i] != -1) {
+			sendKeyByKeycode(finalKeys[i], 0);
+			sendSync();
+		}
+	}
+}*/
+
