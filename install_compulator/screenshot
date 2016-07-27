@@ -1,0 +1,86 @@
+#!/usr/bin/python
+import os, shutil, random, string, datetime
+try:
+  from tkinter import *
+except ImportError:
+  from Tkinter import *
+
+def randString(length):
+  #random string of letters and numbers
+  return ''.join(random.choice(string.ascii_uppercase+string.ascii_lowercase+string.digits) for _ in range(length))
+
+#instantly save the screenshot to a temporary file
+tmpFile = "/tmp/screenshot-" + randString(10) + ".png"
+os.system('scrot ' + tmpFile)
+
+fields = 'Directory', 'Filename'
+values = os.path.expanduser("~"), datetime.datetime.now().strftime("screenshot_%Y-%m-%d_%H-%M-%S.png")
+
+#function to remove the tmp file before quitting
+def deleteAndQuit():
+  try:
+    os.remove(tmpFile)
+  except FileNotFoundError:
+    pass
+  quit()
+
+#attempt to move the tmp file to the location given
+def save(entries, checkbox, text):
+  dirname = entries[0][1].get().strip()
+  filename = entries[1][1].get().strip()
+
+  if dirname == '':
+    text.set("Please enter a directory.")
+    return
+
+  if filename == '':
+    text.set("Please enter a filename.")
+    return
+
+  if checkbox.get():
+    if os.path.splitext(filename)[-1] != ".png":
+      filename += ".png"
+
+  filepath = os.path.join(dirname, filename)
+  try:
+    shutil.move(tmpFile, filepath)
+  except IOError:
+    text.set("Directory not found.")
+    return
+  quit()
+
+def makeform(root, fields):
+  entries = []
+  for field, value in zip(fields, values):
+    row = Frame(root)
+    lab = Label(row, width=15, text=field, anchor='w')
+    ent = Entry(row)
+    ent.insert(0, value)
+    row.pack(side=TOP, fill=X, padx=5, pady=5)
+    lab.pack(side=LEFT)
+    ent.pack(side=RIGHT, expand=YES, fill=X)
+    entries.append((field, ent))
+  return entries
+
+if __name__ == '__main__':
+  root = Tk()
+  root.wm_title("Save Screenshot")
+  ents = makeform(root, fields)
+  v = IntVar()
+  c = Checkbutton(root, text="use .png extension", variable=v, onvalue=True, offvalue=False)
+  c.var = v
+  v.set(1)
+  c.pack()
+  v2 = StringVar()
+  Label(root, fg="red", textvariable=v2).pack()
+  root.bind('<Return>', (lambda event, e=ents: save(e, v, v2)))
+  b1 = Button(root, text='Save',
+         command=(lambda e=ents: save(e, v, v2)))
+  b1.pack(side=LEFT, padx=5, pady=5)
+  b2 = Button(root, text='Cancel',
+            command=(deleteAndQuit))
+  b2.pack(side=LEFT, padx=5, pady=5)
+  root.protocol("WM_DELETE_WINDOW", deleteAndQuit)
+  root.mainloop()
+
+
