@@ -17,6 +17,7 @@ int write(int, char *, int);
 char getpid();
 int close(char);
 int read(int, char *, int);
+int kill(long, int);
 
 // Check for existance of pid file, pid
 long checkDaemon(void) {
@@ -51,6 +52,7 @@ void killDaemon(void) {
 			printf("error: could not kill daemon, continuing\n");
 			return;
 		}
+		printf("killed daemon, continuing\n");
 		unlockPid();
 	}
 }
@@ -74,7 +76,7 @@ void startDaemon(void) {
 
 	if(pid > 0) {
 		// Fork was a success
-		printf("Fork successful! PID: %x\n", pid);
+		printf("Fork successful! PID: %d\n", pid);
 		exit(EXIT_SUCCESS);
 	}
 

@@ -19,9 +19,8 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define DEBUG 1
-
 int fd;
+void usleep(int);
 
 // Initialize uinput keyboard
 void initKeyboard(void) {
@@ -90,7 +89,7 @@ int sendKeyByKeycode(int key, int value) {
 		return 1;
 	}
 
-	printf("wrote to key %x\n", key);
+	printf("keycode %d sent to virtual keyboard\n", key);
 
 	//sendSync(); /* Keyboard sync events need to be handled elsewhere */
 	return 0;
