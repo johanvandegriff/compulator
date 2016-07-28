@@ -81,6 +81,7 @@ int sendSync(void) {
 int sendKeyByKeycode(int key, int value) {
 	struct input_event ev;
 	//memset(&ev, 0, sizeof(struct input_event));
+	gettimeofday(&ev.time, NULL);
 	ev.type = EV_KEY;
 	ev.code = key;
 	ev.value = value;
