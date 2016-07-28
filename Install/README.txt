@@ -20,7 +20,7 @@ I. Download NOOBS and Prepare SD Card
 	B. Move the NOOBS zip file to its own folder and extract the files from it.
 	C. Format an SD card that is 4GB or larger as FAT.
 	D. Copy the extracted files onto the SD card.
-	E. Copy the install script folder (install_compulator) to the root directory of the SD card.
+	E. Copy the install script folder (compulator) to the root directory of the SD card.
 
 	Downloads page: https://www.raspberrypi.org/downloads/noobs/
 	Reference Page: https://www.raspberrypi.org/documentation/installation/noobs.md
@@ -45,9 +45,9 @@ V. Run the Install Script
 	B. Run the following commands:
 		mkdir tmp
 		sudo mount /dev/mmcblk0p1 tmp
-		cp -r tmp/install_compulator/ .
-		chmod +x install_compulator/install.sh
-		sudo install_compulator/install.sh
+		sudo cp -r tmp/compulator/ .
+		chmod +x compulator/Install/install.sh
+		sudo compulator/Install/install.sh
 	C. The script will:
 		1. Ask which components of the installation to skip
 		2. Ask for wifi network information
