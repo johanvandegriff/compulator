@@ -444,14 +444,14 @@ enable_uart=1"
 #https://www.raspberrypi.org/forums/viewtopic.php?f=48&t=70520
 register_module keyboard_daemon --ask
 keyboard_daemon(){
-  cd KeyboardDaemon/ || error "Error changing directory"
+  cd ../KeyboardDaemon/ || error "Error changing directory"
   make || error "Error compiling the KeyboardDaemon"
   # update boot / reboot files
-  my_cp "$KEYBOARD_DAEMON"
+  my_cp /etc/init.d/KeyboardDaemon
   # do it as soon as the device is going down, both for shutdown and reboot
-  update-rc.d "$KEYBOARD_DAEMON" defaults || error "Error setting up KeyboardDaemon"
+  update-rc.d /etc/init.d/KeyboardDaemon defaults || error "Error setting up KeyboardDaemon"
   service KeyboardDaemon start || error "Error starting KeyboardDaemon"
-  cd .. || error "Error changing directory"
+  cd ../Install || error "Error changing directory"
 }
 
 #Power Off Script

@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
 		printf("-tg - test GPIO\n");
 		printf("-tk - test virtual keyboard\n");
 		exit(EXIT_SUCCESS);
-	} else if(!strcmp(argv[1], "-d")) {
+	} else if(!strcmp(argv[1], "-d") || !strcmp(argv[1], "start")) {
 		startDaemon();
-	} else if(!strcmp(argv[1], "-k")) {
+	} else if(!strcmp(argv[1], "-k") || !strcmp(argv[1], "stop")) {
 		killDaemon();
 		exit(EXIT_SUCCESS);
 	} else if(!strcmp(argv[1], "-tg")) {
