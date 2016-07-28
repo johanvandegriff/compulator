@@ -92,10 +92,8 @@ yes_or_no(){
   do
     read -p "$prompt" -n 1 response #read 1 char
     case "$response" in
-      y)answer=y;;
-      Y)answer=y;;
-      n)answer=n;;
-      N)answer=n;;
+      y|Y)answer=y;;
+      n|N)answer=n;;
       *)color yellow "
 Enter y or n.";;
     esac
@@ -182,12 +180,12 @@ mark_as_done(){
   item="$@"
   if ! is_done "$item"
   then
+    append_text_to_file "$item" "$DONE"
     num_done=`cat "$DONE" | sort -u | wc -l`
     num_skipped=`cat "$SKIP" | sort -u | wc -l`
     total=$((NUM_MODULES - num_skipped))
     color green "Step $num_done/$total ($item) done!"
   fi
-  mark "$DONE" "$item"
 }
 
 is_done(){
@@ -219,94 +217,67 @@ disable_auto_rerun(){
 #copied from raspi-config
 #used for enabling/disabling auto-login
 do_boot_behaviour() {
-  if command -v systemctl > /dev/null && systemctl | grep -q '\-\.mount'; then
-    SYSTEMD=1
-  elif [ -f /etc/init.d/cron ] && [ ! -h /etc/init.d/cron ]; then
-    SYSTEMD=0
-  else
-    error "Unrecognised init system"
-  fi
-
-
-  BOOTOPT="$1"
-  if [[ -z "$BOOTOPT" ]]
-  then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Boot Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 Console" "Text console, requiring user to login" \
-      "B2 Console Autologin" "Text console, automatically logged in as 'pi' user" \
-      "B3 Desktop" "Desktop GUI, requiring user to login" \
-      "B4 Desktop Autologin" "Desktop GUI, automatically logged in as 'pi' user" \
-      3>&1 1>&2 2>&3)
-  fi
-#  if [ $? -eq 0 ]; then
-    case "$BOOTOPT" in
-      B1*) #"B1 Console" "Text console, requiring user to login"
-        if [ $SYSTEMD -eq 1 ]; then
-          systemctl set-default multi-user.target
-          ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
-        else
-          [ -e /etc/init.d/lightdm ] && update-rc.d lightdm disable 2
-          sed /etc/inittab -i -e "s/1:2345:respawn:\/bin\/login -f pi tty1 <\/dev\/tty1 >\/dev\/tty1 2>&1/1:2345:respawn:\/sbin\/getty --noclear 38400 tty1/"
-        fi
+  case "$1" in
+#"B1 Console" "Text console, requiring user to login"
+    B1*)systemctl set-default multi-user.target
+        ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
         ;;
-      B2*) #"B2 Console Autologin" "Text console, automatically logged in as 'pi' user"
-        if [ $SYSTEMD -eq 1 ]; then
-          systemctl set-default multi-user.target
+
+#"B2 Console Autologin" "Text console, automatically logged in as 'pi' user"
+    B2*)systemctl set-default multi-user.target
+        ln -fs /etc/systemd/system/autologin@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
+        ;;
+
+#"B3 Desktop" "Desktop GUI, requiring user to login"
+    B3*)systemctl set-default graphical.target
+        ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
+        sed /etc/lightdm/lightdm.conf -i -e "s/^autologin-user=pi/#autologin-user=/"
+        disable_raspi_config_at_boot
+        ;;
+
+#"B4 Desktop Autologin" "Desktop GUI, automatically logged in as 'pi' user"
+    B4*)if id -u pi > /dev/null 2>&1; then
+          systemctl set-default graphical.target
           ln -fs /etc/systemd/system/autologin@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
-        else
-          [ -e /etc/init.d/lightdm ] && update-rc.d lightdm disable 2
-          sed /etc/inittab -i -e "s/1:2345:respawn:\/sbin\/getty --noclear 38400 tty1/1:2345:respawn:\/bin\/login -f pi tty1 <\/dev\/tty1 >\/dev\/tty1 2>&1/"
-        fi
-        ;;
-      B3*) #"B3 Desktop" "Desktop GUI, requiring user to login"
-        if [ -e /etc/init.d/lightdm ]; then
-          if [ $SYSTEMD -eq 1 ]; then
-            systemctl set-default graphical.target
-            ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
-          else
-            update-rc.d lightdm enable 2
-          fi
-          sed /etc/lightdm/lightdm.conf -i -e "s/^autologin-user=pi/#autologin-user=/"
+          sed /etc/lightdm/lightdm.conf -i -e "s/^#autologin-user=.*/autologin-user=pi/"
           disable_raspi_config_at_boot
         else
-          whiptail --msgbox "Do sudo apt-get install lightdm to allow configuration of boot to desktop" 20 60 2
-          return 1
+          error "The pi user has been removed, can't set up boot to desktop"
         fi
-        ;;
-      B4*) #"B4 Desktop Autologin" "Desktop GUI, automatically logged in as 'pi' user"
-        if [ -e /etc/init.d/lightdm ]; then
-          if id -u pi > /dev/null 2>&1; then
-            if [ $SYSTEMD -eq 1 ]; then
-              systemctl set-default graphical.target
-              ln -fs /etc/systemd/system/autologin@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
-            else
-              update-rc.d lightdm enable 2
-            fi
-            sed /etc/lightdm/lightdm.conf -i -e "s/^#autologin-user=.*/autologin-user=pi/"
-            disable_raspi_config_at_boot
-          else
-            whiptail --msgbox "The pi user has been removed, can't set up boot to desktop" 20 60 2
-          fi
-        else
-          whiptail --msgbox "Do sudo apt-get install lightdm to allow configuration of boot to desktop" 20 60 2
-          return 1
-        fi
-        ;;
-      *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+      ;;
+      *)error "Programmer error, unrecognised boot option"
         return 1
         ;;
-    esac
-  #fi
+  esac
 }
 
-MODULES=""
-ASK=""
+declare -A desc
+declare -A depend
+
+MODULES=
+ASK=
 NUM_MODULES=0
 
 register_module(){
-  MODULES="$MODULES $1"
-  [[ "$2" == --ask ]] && ASK="$ASK $1"
+  module="$1"
+  description="$2"
+  MODULES="$MODULES $module"
+  desc["$module"]="$description"
+  if echo "$module" | grep '[[:space:]]' > /dev/null
+  then
+    warning "Warning: whitespace in module \"$module\" may cause installation to fail."
+  fi
+
+  while [[ ! -z "$3" ]]
+  do
+    case "$3" in
+         -a|--ask)ASK="$ASK $module";;
+      -d|--depend)depend["$module"]="${depend[$module]} $4"
+                  shift;;
+                *)warning "register_module: unrecognised option \"$3\"";;
+    esac
+    shift
+  done
   NUM_MODULES=$((NUM_MODULES + 1))
 }
 
@@ -317,8 +288,29 @@ install_modules(){
     > "$SKIP"
     for module in $ASK
     do
-      yes_or_no "Install module \"$module\"?"
+      yes_or_no "Install module \"$module\" (${desc[$module]})?"
       [[ "$answer" == n ]] && mark_as_skipped "$module"
+    done
+
+    for module in $MODULES
+    do
+      if ! is_skipped "$module"
+      then
+        missing=
+        for dependency in ${depend[$module]}
+        do
+          if is_skipped "$dependency"
+          then
+            missing="$missing $dependency"
+          fi
+        done
+        if [[ ! -z "$missing" ]]
+        then
+          warning "Dependencies missing for module $module:$missing"
+          warning "Disabling $module"
+          mark_as_skipped "$module"
+        fi
+      fi
     done
   fi
 
@@ -327,28 +319,31 @@ install_modules(){
     if is_done "$module"
     then
       color green "$module is done."
-    elif ! is_skipped "$module"
+    elif is_skipped "$module"
     then
+      color yellow "$module has been disabled."
+    else
       color yellow "$module is NOT done."
       REBOOT=no
-      "$module" && mark_as_done "$module"
+      "$module" && mark_as_done "$module" #run the module
       [[ "$REBOOT" == "yes" ]] && my_reboot
     fi
   done
   color bold `color green "All steps complete!"`
 }
 
-#ask which items to install
-register_module setup
+register_module setup "ask about the auto-rerun and shutdown when done functions"
 setup(){
   umount /dev/mmcblk0p1 #unmount the recovery partition
   yes_or_no "Do you want the script to automatically log in and re-run itself after rebooting? If not, you will have to manually log in each time and run the script again."
   [[ "$answer" == y ]] && > auto_rerun
+  yes_or_no "Do you want to shutdown after the installation is complete?"
+  [[ "$answer" == y ]] && > shutdown_after
 }
 
 #Wifi
 #https://www.maketecheasier.com/setup-wifi-on-raspberry-pi/
-register_module wifi --ask
+register_module wifi "set up wifi using a wifi USB device" --ask
 wifi(){
   color B_blue "<======= Network devices =======>"
   ifconfig #list network devices
@@ -389,7 +384,7 @@ network={
 #https://learn.adafruit.com/adafruit-2-8-pitft-capacitive-touch/easy-install
 
 #Configure the pi to display everything on the tft screen
-register_module tft_screen --ask
+register_module tft_screen "configure the pi to display everything on the tft screen" --ask
 tft_screen(){
   color green "Updating the pi..."
   my_apt-get update && \
@@ -417,7 +412,7 @@ n
 
 #Touch
 #enable capacitive touch on the tft screen
-register_module tft_touch --ask
+register_module tft_touch "set up the capacitive touchscreen" --ask --depend tft_screen
 tft_touch(){
   color green "Setting up touch screen input device rules..."
   my_cp /etc/udev/rules.d/95-ft6206.rules
@@ -433,42 +428,43 @@ tft_touch(){
 #http://elinux.org/RPi_Serial_Connection#Connection_to_a_microcontroller_or_other_peripheral
 
 #enable serial communication
-register_module serial --ask
+register_module serial "enable serial communication" --ask
 serial(){
   CMDLINE=/boot/cmdline.txt
   color green "Removing serial from $CMDLINE"
   new_contents=`cat $CMDLINE | sed 's/console=serial[0-9]*,[0-9]\+\s\+//g'`
   write_text_to_file "$new_contents" "$CMDLINE"
 
+  CONFIG=/boot/config.txt
   color green "Setting enable_uart=1 in $CONFIG"
   new_contents=`grep -v enable_uart "$CONFIG"`"
 enable_uart=1"
 
   write_text_to_file "$new_contents" "$CONFIG"
 
+  color green "Installing wiringPi..."
+  my_install wiringPi
+
   REBOOT=yes
 }
 
 #https://www.raspberrypi.org/forums/viewtopic.php?f=48&t=70520
-register_module keyboard_daemon --ask
+register_module keyboard_daemon "set up the keyboard daemon to run on startup" --ask --depend serial
 keyboard_daemon(){
   cd ../KeyboardDaemon/ || error "Error changing directory"
   make || error "Error compiling the KeyboardDaemon"
   # update boot / reboot files
   my_cp /etc/init.d/KeyboardDaemon
   # do it as soon as the device is going down, both for shutdown and reboot
-  update-rc.d /etc/init.d/KeyboardDaemon defaults || error "Error setting up KeyboardDaemon"
+  update-rc.d KeyboardDaemon defaults || error "Error setting up KeyboardDaemon"
   service KeyboardDaemon start || error "Error starting KeyboardDaemon"
   cd ../Install || error "Error changing directory"
 }
 
 #Power Off Script
 #add a script to send a power off signal to the ATTINY when the pi shuts down
-register_module power_off --ask
+register_module power_off "add the power off script to the shutdown sequence" --ask --depend serial
 power_off(){
-  color green "Installing wiringPi..."
-  my_install wiringPi
-
   color green "Testing serial communication using wiringPi..."
   gcc -o serial_test serial_test.c -lwiringPi || error "Error compiling the serial test!"
   color green "The backlight should change brightness (if the circuit is assembled and the ATTiny is configured)"
@@ -478,12 +474,12 @@ power_off(){
   gcc -o power_off power_off.c -lwiringPi || error "Error compiling power off script!"
 
   color green "Placing script in /lib/systemd/system-shutdown/"
-  my_cp "$POWER_OFF"
+  my_cp "/lib/systemd/system-shutdown/power_off"
 }
 
 #Desktop adjustments
 #adjust settings such as icon and text size to make the Desktop more usable
-register_module desktop_adjustments --ask
+register_module desktop_adjustments "adjust the desktop to display better on the tft screen" --ask
 desktop_adjustments(){
   color green "Changing pcmanfm desktop settings"
   my_cp "$USER_HOME"/.config/pcmanfm/LXDE-pi/desktop-items-0.conf
@@ -514,16 +510,11 @@ desktop_adjustments(){
 }
 
 #Tilp and Tilem
-register_module emulator --ask
+register_module emulator "install tilp and tilem2" --ask
 emulator(){
   color green "Installing tilp and tilem.."
   my_install tilp2 tilem
 }
-
-#register_module cleanup
-#cleanup(){
-#  color green "The boot options selector is available by running 'sudo raspi-config'"
-#}
 
 #try to connect to google.com
 test_internet(){
@@ -563,7 +554,7 @@ DONE=done.txt #the file that contains which modules are done
 
 #the line to add to enable auto run at login
 AUTO_RERUN_COMMENT="#run the compulator install script (added by the script)"
-AUTO_RERUN="YOUR_NAME=$me sudo $me $AUTO_RERUN_COMMENT"
+AUTO_RERUN="YOUR_NAME=$me sudo bash $me $AUTO_RERUN_COMMENT"
 
 [[ -f auto_rerun ]] && disable_auto_rerun
 
@@ -587,3 +578,5 @@ fi
 
 #go through each module and run it if it is not done/skipped
 install_modules
+
+[[ -f auto_rerun ]] && sudo shutdown now

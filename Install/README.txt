@@ -46,14 +46,13 @@ V. Run the Install Script
 		mkdir tmp
 		sudo mount /dev/mmcblk0p1 tmp
 		sudo cp -r tmp/compulator/ .
-		chmod +x compulator/Install/install.sh
-		sudo compulator/Install/install.sh
+		sudo bash compulator/Install/install.sh
 	C. The script will:
 		1. Ask which components of the installation to skip
-		2. Ask for wifi network information
-		3. Install without further user interaction (unless there is an error)
-		4. Done!
-
+		2. Ask whether to auto rereun the script
+		3. Ask for wifi network information
+	D. If you did not select auto-rerun, the script will need to be run again every time it reboots.
+	E. Done!
 
 
 

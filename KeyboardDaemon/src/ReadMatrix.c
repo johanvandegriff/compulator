@@ -86,8 +86,8 @@
  *	TODO: Add some fancy config options, for now just use my key setup
  */
 
-//#include <stdlib.h>
-//#include <unistd.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <linux/input.h>
 #include <stdio.h>
 #include <wiringPi.h>
@@ -227,7 +227,7 @@ void update(){
 
 
 
-/*void testGPIO(void) {
+void testGPIO(void) {
 	printf("Test Mode - Testing wiringPi\n");
 	sleep(1);
 	printf("Initializing wiringPi!\n");
@@ -253,7 +253,7 @@ void update(){
 	exit(EXIT_SUCCESS);
 }
 
-int errorInt = -1;
+/*int errorInt = -1;
 
 int* getColumn(int column_number) {
 	if(column_number >= COLUMN_COUNT || column_number < 0) {
