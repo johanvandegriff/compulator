@@ -134,7 +134,12 @@ my_mkdir(){
 
 #display a message before rebooting
 my_reboot(){
-  enable_auto_rerun
+  if [[ -f auto_rerun ]]
+  then
+    enable_auto_rerun
+  else
+    echo "Press ENTER to reboot. When the pi boots up, log in and run this script again."
+  fi
   color magenta "Rebooting..."
   reboot
 }
@@ -300,23 +305,24 @@ ASK=""
 NUM_MODULES=0
 
 register_module(){
-  MODULES="$MODULES:$1"
-  [[ "$2" == --ask ]] && ASK="$ASK:$1"
+  MODULES="$MODULES $1"
+  [[ "$2" == --ask ]] && ASK="$ASK $1"
   NUM_MODULES=$((NUM_MODULES + 1))
 }
 
+SKIP=skip.txt
 install_modules(){
   if [[ ! -f "$SKIP" ]]
   then
- 	> "$SKIP"
-    for module in "$ASK"
- 	do
+    > "$SKIP"
+    for module in $ASK
+    do
       yes_or_no "Install module \"$module\"?"
       [[ "$answer" == n ]] && mark_as_skipped "$module"
     done
   fi
 
-  for module in "$MODULES"
+  for module in $MODULES
   do
     if is_done "$module"
     then
@@ -336,6 +342,8 @@ install_modules(){
 register_module setup
 setup(){
   umount /dev/mmcblk0p1 #unmount the recovery partition
+  yes_or_no "Do you want the script to automatically log in and re-run itself after rebooting? If not, you will have to manually log in each time and run the script again."
+  [[ "$answer" == y ]] && > auto_rerun
 }
 
 #Wifi
@@ -538,9 +546,6 @@ USER_HOME=`eval echo ~$SUDO_USER` #the home dir of the user who ran this script 
 USER_BIN="$USER_HOME"/bin/ #the user's ~/bin directory
 PROFILE="$USER_HOME"/.profile #the user's .profile file
 
-DONE=done.txt #the file that contains which modules are done
-[[ ! -f "$DONE" ]] && > "$DONE"
-
 #if YOUR_NAME was not set by the auto run at login
 if [[ -z "$YOUR_NAME" ]]
 then
@@ -553,11 +558,14 @@ else
   me="$YOUR_NAME"
 fi
 
+DONE=done.txt #the file that contains which modules are done
+[[ ! -f "$DONE" ]] && > "$DONE"
+
 #the line to add to enable auto run at login
 AUTO_RERUN_COMMENT="#run the compulator install script (added by the script)"
 AUTO_RERUN="YOUR_NAME=$me sudo $me $AUTO_RERUN_COMMENT"
 
-disable_auto_rerun
+[[ -f auto_rerun ]] && disable_auto_rerun
 
 #test the internet
 if ! test_internet
@@ -571,7 +579,7 @@ then
   color green "You are connected to the internet."
 else
   color yellow "You are NOT connected to the internet."
-  if is_done "wifi"
+  if [[ -f "$DONE" ]] && is_done "wifi"
   then
     warning "Cannot connect to the internet and the wifi setup has been disabled."
   fi
