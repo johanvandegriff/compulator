@@ -20,6 +20,18 @@
  *	| 9 | ON    | 0       | .    | (-)       | ENTER      |
  *	+---+-------+---------+------+-----------+------------+
  *
+ *
+ *      +-------------------------+----------+------------------------------------------------+
+ *      | Key pressed             | Duration | Action                                         |
+ *      +-------------------------+----------+------------------------------------------------+
+ *      | 2nd + On                | >= 5 sec | Trigger relay to turn off the computer         |
+ *      | 2nd + On                | < 5 sec  | Turn off screen and only listen for on button  |
+ *      | On                      | Any      | Turn on screen                                 |
+ *      | 2nd + MODE + up arrow   | Any      | Increase Screen Brightness                     |
+ *      | 2nd + MODE + down arrow | Any      | Decrease Screen Brightness                     |
+ *      +-------------------------+----------+------------------------------------------------+
+ *
+ *
  *	All key and key combinations should be converted as follows:
  *	+---------------------+----------------------------------+
  *	| uinput ID Triggered | Key pressed                      |
@@ -91,7 +103,25 @@
 #include <linux/input.h>
 #include <stdio.h>
 #include <wiringPi.h>
+#include <wiringSerial.h>
 #include "KeyboardInterface.h"
+
+//command definitions
+#define SET_SCREEN_OFF 10
+#define SET_SCREEN_ON 11
+#define GET_SCREEN_STATE 12
+
+#define SET_SCREEN_BRIGHTNESS 15
+#define GET_SCREEN_BRIGHTNESS 16
+
+#define GET_CPU_TEMP 30
+
+#define TURN_OFF_POWER 40
+
+#define GO_TO_SLEEP 101
+#define WAKE_UP 102
+
+//button matrix dimensions
 
 #define ROW_COUNT 10
 #define COLUMN_COUNT 5
@@ -128,34 +158,41 @@ int keyMap[4][ROW_COUNT][COLUMN_COUNT] = {
 				{-1,			KEY_0,			KEY_SEMICOLON,	-1,				KEY_ENTER}
 		},
 		{
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1}
+				{KEY_F1,		KEY_F2,			KEY_F3,			KEY_F4,			KEY_F5},
+				{-1,			-1,				KEY_DELETE,		KEY_LEFT,		KEY_UP},
+				{KEY_CAPSLOCK,	KEY_RIGHTCTRL,	KEY_LEFTSHIFT,	KEY_DOWN,		KEY_RIGHT},
+				{KEY_A,			KEY_B,			KEY_C,			KEY_LEFTALT,	KEY_BACKSPACE},
+				{KEY_D,			KEY_E,			KEY_F,			KEY_G,			KEY_H},
+				{KEY_I,			KEY_J,			KEY_K,			KEY_L,			KEY_M},
+				{KEY_N,			KEY_7,			KEY_8,			KEY_9,			KEY_R},
+				{KEY_S,			KEY_4,			KEY_5,			KEY_6,			KEY_MINUS},
+				{KEY_X,			KEY_1,			KEY_2,			KEY_3,			KEY_EQUAL},
+				{-1,			KEY_0,			KEY_SEMICOLON,	-1,				KEY_ENTER}
 		},
 		{
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1},
-				{-1, -1, -1, -1, -1}
+				{KEY_F1,		KEY_F2,			KEY_F3,			KEY_F4,			KEY_F5},
+				{-1,			-1,				KEY_DELETE,		KEY_LEFT,		KEY_UP},
+				{KEY_CAPSLOCK,	KEY_RIGHTCTRL,	KEY_LEFTSHIFT,	KEY_DOWN,		KEY_RIGHT},
+				{KEY_A,			KEY_B,			KEY_C,			KEY_LEFTALT,	KEY_BACKSPACE},
+				{KEY_D,			KEY_E,			KEY_F,			KEY_G,			KEY_H},
+				{KEY_I,			KEY_J,			KEY_K,			KEY_L,			KEY_M},
+				{KEY_N,			KEY_7,			KEY_8,			KEY_9,			KEY_R},
+				{KEY_S,			KEY_4,			KEY_5,			KEY_6,			KEY_MINUS},
+				{KEY_X,			KEY_1,			KEY_2,			KEY_3,			KEY_EQUAL},
+				{-1,			KEY_0,			KEY_SEMICOLON,	-1,				KEY_ENTER}
 		}
 };
 
+int fd;
+
 int initGPIO(void) {
+	//try to open the serial port
+	if((fd = serialOpen ("/dev/ttyAMA0", 9600)) < 0 ){
+		printf("/dev/ttyAMA0 could not be opened.\n");
+		return -1;
+	}
 	if (wiringPiSetup() == -1) {
-		printf("WiringPi Failed");
+		printf("WiringPi Failed\n");
 		return -1;
 	}
 
@@ -178,6 +215,7 @@ int getModifier(){
 	return is2nd * 2 + isMod;
 }
 
+int screenBrightness = 255;
 void update(){
 	int x, y, i, modifier, key;
 	int state, previousState;
@@ -192,6 +230,21 @@ void update(){
 			buttons[y][x] = state;
 			if(state && !previousState){
 				modifier = getModifier();
+				if(modifier == 3 && (key == KEY_UP || key == KEY_DOWN)){
+					if(key == KEY_UP){
+						screenBrightness++;
+					} else {
+						screenBrightness--;
+					}
+					if(screenBrightness > 255){
+						screenBrightness = 255;
+					}
+					if(screenBrightness < 0){
+						screenBrightness = 0;
+					}
+					serialPutchar(fd, SET_SCREEN_BRIGHTNESS);
+					serialPutchar(fd, screenBrightness);
+				}
 				key = keyMap[modifier][9-y][x];
 				printf("press at (%d, %d) mod: %d, key: %d\n", x, y, modifier, key);
 				// update the pressed key
