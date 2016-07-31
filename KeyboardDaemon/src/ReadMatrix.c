@@ -230,7 +230,8 @@ void update(){
 			buttons[y][x] = state;
 			if(state && !previousState){
 				modifier = getModifier();
-				if(modifier == 3 && (key == KEY_UP || key == KEY_DOWN)){
+				key = keyMap[modifier][9-y][x];
+/*				if(modifier == 3 && (key == KEY_UP || key == KEY_DOWN)){
 					if(key == KEY_UP){
 						screenBrightness++;
 					} else {
@@ -244,8 +245,7 @@ void update(){
 					}
 					serialPutchar(fd, SET_SCREEN_BRIGHTNESS);
 					serialPutchar(fd, screenBrightness);
-				}
-				key = keyMap[modifier][9-y][x];
+				}*/
 				printf("press at (%d, %d) mod: %d, key: %d\n", x, y, modifier, key);
 				// update the pressed key
 				sendKeyByKeycode(key, 1);
