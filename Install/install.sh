@@ -502,6 +502,8 @@ desktop_adjustments(){
   color green "Copying screenshot program to $USER_BIN"
   my_cp "$USER_BIN"/screenshot
 
+  sudo chown -R "$SUDO_USER" "$USER_BIN"
+
   color green "Adding PrintScreen button trigger to run screenshot program"
   my_cp "$USER_HOME"/.config/openbox/lxde-pi-rc.xml
 
