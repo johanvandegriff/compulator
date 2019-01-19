@@ -392,20 +392,29 @@ tft_screen(){
   rpi-update || \
   warning "Unable to update the pi!"
 
-  color green "Adding adafruit to the package list..."
-  curl -SLs https://apt.adafruit.com/add-pin | bash || error "Unable to download from adafruit!"
-
-  color green "Installing the adafruit tft kernel patch..."
-  my_apt-get remove raspberrypi-bootloader
-  my_install raspberrypi-bootloader
-
-  color green "Installing the tft setup helper..."
-  my_install adafruit-pitft-helper
-
-  color green "Running the tft setup helper..."
-  echo 'y
-n
-' | adafruit-pitft-helper -t 28c || error "Error setting up /boot/config.txt"
+  #https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/blob/master/adafruit-pitft.sh
+  color green "Downloading the tft setup script from adafruit.com..."
+  wget -N https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh || error "Error downloading the script."
+  chmod +x adafruit-pitft.sh || error "Error changing the permissions on the script."
+  echo "3
+3
+y
+> " | sudo ./adafruit-pitft.sh || error "Error setting up the tft screen."
+  
+#  color green "Adding adafruit to the package list..."
+#  curl -SLs https://apt.adafruit.com/add-pin | bash || error "Unable to download from adafruit!"
+#
+#  color green "Installing the adafruit tft kernel patch..."
+#  my_apt-get remove raspberrypi-bootloader
+#  my_install raspberrypi-bootloader
+#
+#  color green "Installing the tft setup helper..."
+#  my_install adafruit-pitft-helper
+#
+#  color green "Running the tft setup helper..."
+#  echo 'y
+#n
+#' | adafruit-pitft-helper -t 28c || error "Error setting up /boot/config.txt"
 
   REBOOT=yes
 }
