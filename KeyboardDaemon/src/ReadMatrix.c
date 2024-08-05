@@ -187,8 +187,8 @@ int fd;
 
 int initGPIO(void) {
 	//try to open the serial port
-	if((fd = serialOpen ("/dev/ttyAMA0", 9600)) < 0 ){
-		printf("/dev/ttyAMA0 could not be opened.\n");
+	if((fd = serialOpen ("/dev/serial0", 9600)) < 0 ){
+		printf("/dev/serial0 could not be opened.\n");
 		return -1;
 	}
 	if (wiringPiSetup() == -1) {

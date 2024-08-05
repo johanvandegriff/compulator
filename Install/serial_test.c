@@ -1,5 +1,5 @@
-//#include <wiringPi.h>
-//#include <string.h>
+#include <wiringPi.h>
+#include <string.h>
 //#include <errno.h>
 //#include <sys/types.h>
 #include <wiringSerial.h>
@@ -24,8 +24,8 @@ int main(int argc, char** argv){
   int fd;
 
   //try to open the serial port
-  if((fd = serialOpen ("/dev/ttyAMA0", 9600)) < 0 ){
-    perror("/dev/ttyAMA0 could not be opened.\n");
+  if((fd = serialOpen ("/dev/serial0", 9600)) < 0 ){
+    perror("/dev/serial0 could not be opened.\n");
   }
   if ( wiringPiSetup () < 0 ){
     perror("WiringPiSetup problem \n ");

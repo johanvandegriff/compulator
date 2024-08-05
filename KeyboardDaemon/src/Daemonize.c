@@ -17,7 +17,7 @@ int write(int, char *, int);
 char getpid();
 int close(char);
 int read(int, char *, int);
-int kill(long, int);
+//int kill(long, int);
 
 // Check for existance of pid file, pid
 long checkDaemon(void) {

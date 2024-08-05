@@ -19,26 +19,26 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-int fd;
-void usleep(int);
+int fd2;
+//void usleep(int);
 
 // Initialize uinput keyboard
 void initKeyboard(void) {
 	// Set up uinput device
-	fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-	if(fd < 0) {
+	fd2 = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+	if(fd2 < 0) {
 		printf("Error opening keyboard device\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// Enable key press/release and synchronization events
-	ioctl(fd, UI_SET_EVBIT, EV_KEY);
-	ioctl(fd, UI_SET_EVBIT, EV_SYN);
+	ioctl(fd2, UI_SET_EVBIT, EV_KEY);
+	ioctl(fd2, UI_SET_EVBIT, EV_SYN);
 
 	// Enable keypress events of any key
 	int i;
 	for(i = 0; i < 256; i++) {
-		if(ioctl(fd, UI_SET_KEYBIT, i) < 0) {
+		if(ioctl(fd2, UI_SET_KEYBIT, i) < 0) {
 			printf("error: associating key %x\n", i);
 		}
 	}
@@ -54,12 +54,12 @@ void initKeyboard(void) {
 	uidev.id.version = 1;
 
 	// Create the device
-	if(write(fd, &uidev, sizeof(uidev)) < 0) {
+	if(write(fd2, &uidev, sizeof(uidev)) < 0) {
 		printf("error writing keyboard creation\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if(ioctl (fd, UI_DEV_CREATE) < 0) {
+	if(ioctl (fd2, UI_DEV_CREATE) < 0) {
 		printf("error creating keyboard\n");
 		exit(EXIT_FAILURE);
 	}
@@ -71,7 +71,7 @@ int sendSync(void) {
 	ev.type = EV_SYN;
 	ev.code = SYN_REPORT;
 	ev.value = 0;
-	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
+	if(write(fd2, &ev, sizeof(struct input_event)) < 0) {
 		printf("error: writing sync\n");
 		return 1;
 	}
@@ -85,7 +85,7 @@ int sendKeyByKeycode(int key, int value) {
 	ev.type = EV_KEY;
 	ev.code = key;
 	ev.value = value;
-	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
+	if(write(fd2, &ev, sizeof(struct input_event)) < 0) {
 		printf("error writing event\n");
 		return 1;
 	}
@@ -97,7 +97,7 @@ int sendKeyByKeycode(int key, int value) {
 }
 
 int sendKeyByInputEvent(struct input_event ev) {
-	if(write(fd, &ev, sizeof(struct input_event)) < 0) {
+	if(write(fd2, &ev, sizeof(struct input_event)) < 0) {
 		printf("error writing event\n");
 		return 1;
 	}
@@ -107,10 +107,10 @@ int sendKeyByInputEvent(struct input_event ev) {
 // Destroy uinput keyboard
 void destroyKeyboard() {
 	sleep(2);
-	if(ioctl(fd, UI_DEV_DESTROY) < 0) {
+	if(ioctl(fd2, UI_DEV_DESTROY) < 0) {
 		printf("error: destroying");
 	}
-	close(fd);
+	close(fd2);
 }
 
 void typeKey(int key) {

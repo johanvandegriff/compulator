@@ -140,6 +140,7 @@ my_reboot(){
   fi
   color magenta "Rebooting..."
   reboot
+  exit
 }
 
 #Write text to a file. Exit with an error if it fails.
@@ -388,19 +389,39 @@ register_module tft_screen "configure the pi to display everything on the tft sc
 tft_screen(){
   color green "Updating the pi..."
   my_apt-get update && \
-  my_apt-get upgrade && \
-  rpi-update || \
+  my_apt-get upgrade || \
   warning "Unable to update the pi!"
 
-  #https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/blob/master/adafruit-pitft.sh
-  color green "Downloading the tft setup script from adafruit.com..."
-  wget -N https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh || error "Error downloading the script."
-  chmod +x adafruit-pitft.sh || error "Error changing the permissions on the script."
-  echo "3
-3
-y
-> " | sudo ./adafruit-pitft.sh || error "Error setting up the tft screen."
-  
+  #https://learn.adafruit.com/adafruit-pitft-28-inch-resistive-touchscreen-display-raspberry-pi/easy-install-2
+  sudo apt install python3-venv git python3-pip || error "Error installing apt deps"
+  python -m venv env --system-site-packages || error "Error creating venv"
+  source env/bin/activate || error "Error activating venv"
+  pip3 install --upgrade adafruit-python-shell click || error "Error installing python deps"
+  git clone https://github.com/adafruit/Raspberry-Pi-Installer-Scripts.git || error "Error cloning repo"
+  sudo -E env PATH=$PATH python3 Raspberry-Pi-Installer-Scripts/adafruit-pitft.py --display=28c --rotation=90 --install-type=mirror --reboot=no
+
+  #If you just want a Linux text console to appear on the display, use one of the following commands:
+  #For the PiTFT 2.8" Capacitive touchscreen, use the following command:
+  #sudo -E env PATH=$PATH python3 adafruit-pitft.py --display=28c --rotation=90 --install-type=console
+
+  #If you want to mirror the HDMI output to the display, known as “FrameBuffer Copy” or FBCP for short, use one of the following commands:
+  #For the PiTFT 2.8" Capacitive touchscreen, use the following command:
+  #sudo -E env PATH=$PATH python3 adafruit-pitft.py --display=28c --rotation=90 --install-type=mirror
+
+  #For an interactive install, you can just run the script without any options:
+  #sudo -E env PATH=$PATH python3 adafruit-pitft.py
+
+
+#  #https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/blob/master/adafruit-pitft.sh
+#  color green "Downloading the tft setup script from adafruit.com..."
+#  wget -N https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh || error "Error downloading the script."
+#  chmod +x adafruit-pitft.sh || error "Error changing the permissions on the script."
+#  echo "3
+#3
+#y
+#> " | sudo ./adafruit-pitft.sh || error "Error setting up the tft screen."
+
+
 #  color green "Adding adafruit to the package list..."
 #  curl -SLs https://apt.adafruit.com/add-pin | bash || error "Unable to download from adafruit!"
 #
@@ -439,26 +460,41 @@ tft_touch(){
 #enable serial communication
 register_module serial "enable serial communication" --ask
 serial(){
-  CMDLINE=/boot/cmdline.txt
+  CMDLINE=/boot/firmware/cmdline.txt
   color green "Removing serial from $CMDLINE"
   new_contents=`cat $CMDLINE | sed 's/console=serial[0-9]*,[0-9]\+\s\+//g'`
   write_text_to_file "$new_contents" "$CMDLINE"
 
-  CONFIG=/boot/config.txt
+  CONFIG=/boot/firmware/config.txt
   color green "Setting enable_uart=1 in $CONFIG"
   new_contents=`grep -v enable_uart "$CONFIG"`"
 enable_uart=1"
 
   write_text_to_file "$new_contents" "$CONFIG"
 
-  color green "Installing wiringPi..."
-  my_install wiringPi
+#  color green "Installing wiringPi..."
+#  my_install wiringPi
 
   REBOOT=yes
 }
 
+register_module install_wiring_pi "install wiringPi (required for keyboard and power off script)"
+install_wiring_pi(){
+  color green "Installing wiringPi..."
+
+  git clone https://github.com/WiringPi/WiringPi.git || error "Error cloning wiringPi"
+  cd WiringPi || error "Error changing directory"
+  ./build || error "Error building wiringPi"
+  cd .. || error "Error changing directory"
+
+#  wget https://project-downloads.drogon.net/wiringpi-latest.deb || error "Error downloading wiringPi"
+#  dpkg -i wiringpi-latest.deb || error "Error installing wiringPi"
+
+#  my_install wiringPi
+}
+
 #https://www.raspberrypi.org/forums/viewtopic.php?f=48&t=70520
-register_module keyboard_daemon "set up the keyboard daemon to run on startup" --ask --depend serial
+register_module keyboard_daemon "set up the keyboard daemon to run on startup" --ask --depend serial --depend install_wiring_pi
 keyboard_daemon(){
   cd ../KeyboardDaemon/ || error "Error changing directory"
   make || error "Error compiling the KeyboardDaemon"
@@ -467,12 +503,13 @@ keyboard_daemon(){
   # do it as soon as the device is going down, both for shutdown and reboot
   update-rc.d KeyboardDaemon defaults || error "Error setting up KeyboardDaemon"
   service KeyboardDaemon start || error "Error starting KeyboardDaemon"
+  sudo sed 's,^exit 0$,/etc/init.d/KeyboardDaemon \&\n exit 0,g' -i /etc/rc.local || error "Error having KeyboardDaemon start on boot"
   cd ../Install || error "Error changing directory"
 }
 
 #Power Off Script
 #add a script to send a power off signal to the ATTINY when the pi shuts down
-register_module power_off "add the power off script to the shutdown sequence" --ask --depend serial
+register_module power_off "add the power off script to the shutdown sequence" --ask --depend serial --depend install_wiring_pi
 power_off(){
   color green "Testing serial communication using wiringPi..."
   gcc -o serial_test serial_test.c -lwiringPi || error "Error compiling the serial test!"
@@ -518,6 +555,11 @@ desktop_adjustments(){
 
   color green "Changing the login message"
   my_cp /etc/motd
+}
+
+register_module autostart_terminal "autostart a terminal window when the user logs in" --ask
+autostart_terminal(){
+  cp /usr/share/applications/lxterminal.desktop "$USER_HOME"/.config/autostart/lxterminal.desktop || error "Error copying desktop file"
 }
 
 #Tilp and Tilem

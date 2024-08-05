@@ -1,5 +1,5 @@
-//#include <wiringPi.h>
-//#include <string.h>
+#include <wiringPi.h>
+#include <string.h>
 //#include <errno.h>
 //#include <sys/types.h>
 #include <wiringSerial.h>
@@ -22,14 +22,14 @@
 #define WAKE_UP 102
 
 int main(int argc, char** argv){
-  if(!strcmp("reboot", argv[1])){
+  if(argc > 1 && !strcmp("reboot", argv[1])){
     return 0;
   }
 
   int fd;
 
   //try to open the serial port
-  if((fd = serialOpen ("/dev/ttyAMA0", 9600)) < 0 ){
+  if((fd = serialOpen ("/dev/serial0", 9600)) < 0 ){
     perror("device not opened \n");
   }
   if ( wiringPiSetup () < 0 ){
